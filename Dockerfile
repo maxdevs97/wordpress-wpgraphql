@@ -8,7 +8,7 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
 # Install required tools
 RUN apt-get update && apt-get install -y \
     less \
-    default-mysql-client \
+    mariadb-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy custom entrypoint script
