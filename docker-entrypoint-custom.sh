@@ -2,7 +2,6 @@
 set -e
 
 # Run the official WordPress entrypoint to set up files and start Apache
-# PG4WP is already in /usr/src/wordpress/wp-content/ and will be copied automatically
 docker-entrypoint.sh apache2-foreground &
 APACHE_PID=$!
 
