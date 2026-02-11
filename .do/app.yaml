@@ -1,0 +1,49 @@
+name: wordpress-wpgraphql
+region: nyc
+
+databases:
+  - engine: MYSQL
+    name: wordpress-db
+    production: false
+    version: "8"
+
+services:
+  - name: wordpress
+    github:
+      repo: maxdevs97/wordpress-wpgraphql
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 80
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
+    envs:
+      - key: WORDPRESS_DB_HOST
+        scope: RUN_TIME
+        value: ${wordpress-db.HOSTNAME}:${wordpress-db.PORT}
+      - key: WORDPRESS_DB_USER
+        scope: RUN_TIME
+        value: ${wordpress-db.USERNAME}
+      - key: WORDPRESS_DB_PASSWORD
+        scope: RUN_TIME
+        value: ${wordpress-db.PASSWORD}
+      - key: WORDPRESS_DB_NAME
+        scope: RUN_TIME
+        value: ${wordpress-db.DATABASE}
+      - key: WORDPRESS_URL
+        scope: RUN_TIME
+        value: ${APP_URL}
+      - key: WORDPRESS_ADMIN_USER
+        scope: RUN_TIME
+        value: admin
+      - key: WORDPRESS_ADMIN_PASSWORD
+        scope: RUN_TIME
+        value: WPGraphQL2026!
+      - key: WORDPRESS_ADMIN_EMAIL
+        scope: RUN_TIME
+        value: max@sheragency.com
+      - key: WORDPRESS_TITLE
+        scope: RUN_TIME
+        value: "WordPress with WPGraphQL"
