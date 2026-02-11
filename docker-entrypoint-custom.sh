@@ -1,29 +1,34 @@
 #!/bin/bash
 set -e
 
-# Start the official WordPress entrypoint in the background
+# Run the official WordPress entrypoint to set up files and start Apache
+# PG4WP is already in /usr/src/wordpress/wp-content/ and will be copied automatically
 docker-entrypoint.sh apache2-foreground &
-WORDPRESS_PID=$!
+APACHE_PID=$!
 
-# Wait for Apache and WordPress files to be ready
-echo "Waiting for WordPress files to be ready..."
-sleep 10
+# Wait for WordPress files to be ready
+echo "Waiting for WordPress to initialize..."
+sleep 15
 
-# Install PG4WP (PostgreSQL for WordPress)
-echo "Installing PG4WP..."
-if [ ! -f /var/www/html/wp-content/db.php ]; then
-    cp /usr/src/pg4wp/db.php /var/www/html/wp-content/
-    cp -r /usr/src/pg4wp/driver_pgsql_install.php /var/www/html/wp-content/
-    echo "PG4WP installed!"
-else
-    echo "PG4WP already installed."
+# Wait for database to be responsive
+echo "Checking database connectivity..."
+max_attempts=30
+attempt=0
+until wp db check --allow-root --path=/var/www/html 2>/dev/null || [ $attempt -eq $max_attempts ]; do
+    attempt=$((attempt + 1))
+    echo "Waiting for database (attempt $attempt/$max_attempts)..."
+    sleep 2
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo "ERROR: Database not accessible after $max_attempts attempts"
+    echo "Host: ${WORDPRESS_DB_HOST}"
+    exit 1
 fi
 
-# Wait a bit more for database to be ready
-echo "Waiting for database connection..."
-sleep 20
+echo "✓ Database connected!"
 
-# Check if WordPress is installed
+# Install WordPress if needed
 if ! wp core is-installed --allow-root --path=/var/www/html 2>/dev/null; then
     echo "Installing WordPress..."
     wp core install \
@@ -35,20 +40,27 @@ if ! wp core is-installed --allow-root --path=/var/www/html 2>/dev/null; then
         --allow-root \
         --path=/var/www/html
     
-    echo "WordPress installed successfully!"
+    echo "✓ WordPress installed!"
+else
+    echo "✓ WordPress already installed"
 fi
 
-# Install and activate WPGraphQL plugin
-echo "Installing WPGraphQL plugin..."
+# Install and activate WPGraphQL
+echo "Setting up WPGraphQL..."
 if ! wp plugin is-installed wp-graphql --allow-root --path=/var/www/html 2>/dev/null; then
     wp plugin install wp-graphql --activate --allow-root --path=/var/www/html
-    echo "WPGraphQL plugin installed and activated!"
+    echo "✓ WPGraphQL installed and activated!"
 else
     wp plugin activate wp-graphql --allow-root --path=/var/www/html 2>/dev/null || true
-    echo "WPGraphQL plugin already installed, activated!"
+    echo "✓ WPGraphQL already active"
 fi
 
-echo "WordPress with WPGraphQL and PostgreSQL is ready!"
+echo ""
+echo "================================================"
+echo "✓ WordPress with WPGraphQL is ready!"
+echo "✓ Site: ${WORDPRESS_URL}"
+echo "✓ GraphQL endpoint: ${WORDPRESS_URL}/graphql"
+echo "================================================"
 
-# Wait for the WordPress process
-wait $WORDPRESS_PID
+# Keep the container running
+wait $APACHE_PID
